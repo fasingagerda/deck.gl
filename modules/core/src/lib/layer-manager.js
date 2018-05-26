@@ -22,11 +22,7 @@ import assert from '../utils/assert';
 import {Framebuffer, ShaderCache} from 'luma.gl';
 import seer from 'seer';
 import Layer from './layer';
-import {drawLayers} from './draw-layers';
-import {pickObject, pickVisibleObjects} from './pick-layers';
 import {LIFECYCLE} from '../lifecycle/constants';
-import ViewManager from '../views/view-manager';
-import MapView from '../views/map-view';
 import log from '../utils/log';
 import {flatten} from '../utils/flatten';
 import {Stats} from 'probe.gl';
@@ -94,9 +90,6 @@ export default class LayerManager {
       stats: stats || new Stats({id: 'deck.gl'})
     });
 
-    // Maps view descriptors to vieports, rebuilds when width/height/viewState/views change
-    this.viewManager = new ViewManager();
-
     this.layerFilter = null;
     this.drawPickingColors = false;
 
@@ -132,7 +125,7 @@ export default class LayerManager {
     }
 
     // Init with default map viewport
-    this.setViews();
+    // this.setViews();
   }
 
   // Method to call when the layer manager is not needed anymore.
@@ -172,6 +165,7 @@ export default class LayerManager {
       : this.layers;
   }
 
+  /*
   getViews() {
     return this.viewManager.views;
   }
@@ -184,6 +178,7 @@ export default class LayerManager {
     }
     return viewports;
   }
+  */
 
   /**
    * Set props needed for layer rendering and picking.
@@ -192,27 +187,10 @@ export default class LayerManager {
    */
   /* eslint-disable complexity, max-statements */
   setProps(props) {
-    if ('eventManager' in props) {
-      this._initEventHandling(props.eventManager);
-    }
-
-    if ('pickingRadius' in props || 'onLayerClick' in props || 'onLayerHover' in props) {
-      this._setEventHandlingParameters(props);
-    }
-
     if ('width' in props || 'height' in props) {
-      this.viewManager.setSize(props.width, props.height);
+      // this.viewManager.setSize(props.width, props.height);
       this.width = props.width;
       this.height = props.height;
-    }
-
-    if ('views' in props) {
-      this.setViews(props.views);
-    }
-
-    // TODO - support multiple view states
-    if ('viewState' in props) {
-      this.viewManager.setViewState(props.viewState);
     }
 
     // TODO - For now we set layers before viewports to preserve changeFlags
@@ -239,12 +217,25 @@ export default class LayerManager {
       this.context.userData = props.userData;
     }
 
+    /*
     if ('useDevicePixels' in props) {
       this.context.useDevicePixels = props.useDevicePixels;
     }
+
+    if ('views' in props) {
+      assert(false);
+    }
+
+    // TODO - support multiple view states
+    if ('viewState' in props) {
+      assert(false);
+      // this.viewManager.setViewState(props.viewState);
+    }
+    */
   }
   /* eslint-enable complexity, max-statements */
 
+  /*
   // Update the view descriptor list and set change flag if needed
   // Does not actually rebuild the `Viewport`s until `getViewports` is called
   setViews(views) {
@@ -256,11 +247,12 @@ export default class LayerManager {
 
     this.viewManager.setViews(views);
   }
+  */
 
   // Supply a new layer list, initiating sublayer generation and layer matching
   setLayers(newLayers) {
-    this.getViewports();
-    assert(this.context.viewport, 'LayerManager.updateLayers: viewport not set');
+    // this.getViewports();
+    // assert(this.context.viewport, 'LayerManager.updateLayers: viewport not set');
 
     // TODO - something is generating state updates that cause rerender of the same
     if (newLayers === this.lastRenderedLayers) {
@@ -306,69 +298,6 @@ export default class LayerManager {
   // METHODS FOR LAYERS
   //
 
-  // Draw all layers in all views
-  drawLayers({pass = 'render to screen', redrawReason = 'unknown reason'} = {}) {
-    const {drawPickingColors} = this;
-    const {gl, useDevicePixels} = this.context;
-
-    // render this viewport
-    drawLayers(gl, {
-      layers: this.layers,
-      viewports: this.getViewports(),
-      onViewportActive: this._activateViewport.bind(this),
-      useDevicePixels,
-      drawPickingColors,
-      pass,
-      layerFilter: this.layerFilter,
-      redrawReason
-    });
-  }
-
-  // Pick the closest info at given coordinate
-  pickObject({x, y, mode, radius = 0, layerIds, layerFilter, depth = 1}) {
-    const {gl, useDevicePixels} = this.context;
-
-    const layers = this.getLayers({layerIds});
-
-    return pickObject(gl, {
-      // User params
-      x,
-      y,
-      radius,
-      layers,
-      mode,
-      layerFilter,
-      depth,
-      // Injected params
-      viewports: this.getViewports(),
-      onViewportActive: this._activateViewport.bind(this),
-      pickingFBO: this._getPickingBuffer(),
-      lastPickedInfo: this.context.lastPickedInfo,
-      useDevicePixels
-    });
-  }
-
-  // Get all unique infos within a bounding box
-  pickObjects({x, y, width, height, layerIds, layerFilter}) {
-    const {gl, useDevicePixels} = this.context;
-
-    const layers = this.getLayers({layerIds});
-
-    return pickVisibleObjects(gl, {
-      x,
-      y,
-      width,
-      height,
-      layers,
-      layerFilter,
-      mode: 'pickObjects',
-      viewports: this.getViewports(),
-      onViewportActive: this._activateViewport.bind(this),
-      pickingFBO: this._getPickingBuffer(),
-      useDevicePixels
-    });
-  }
-
   //
   // DEPRECATED METHODS in V5.3
   //
@@ -386,26 +315,6 @@ export default class LayerManager {
   }
 
   //
-  // DEPRECATED METHODS in V5.1
-  //
-
-  setViewports(viewports) {
-    log.deprecated('setViewport', 'setViews')();
-    this.setViews(viewports);
-    return this;
-  }
-
-  //
-  // DEPRECATED METHODS in V5
-  //
-
-  setViewport(viewport) {
-    log.deprecated('setViewport', 'setViews')();
-    this.setViews([viewport]);
-    return this;
-  }
-
-  //
   // PRIVATE METHODS
   //
 
@@ -415,7 +324,7 @@ export default class LayerManager {
       this._needsRedraw = false;
     }
 
-    redraw = redraw || this.viewManager.needsRedraw();
+    // redraw = redraw || this.viewManager.needsRedraw({clearRedrawFlags});
 
     // This layers list doesn't include sublayers, relying on composite layers
     for (const layer of this.layers) {
@@ -425,37 +334,6 @@ export default class LayerManager {
     }
 
     return redraw;
-  }
-
-  /**
-   * @param {Object} eventManager   A source of DOM input events
-   */
-  _initEventHandling(eventManager) {
-    this._eventManager = eventManager;
-
-    // TODO: add/remove handlers on demand at runtime, not all at once on init.
-    // Consider both top-level handlers like onLayerClick/Hover
-    // and per-layer handlers attached to individual layers.
-    // https://github.com/uber/deck.gl/issues/634
-    this._eventManager.on({
-      click: this._onClick,
-      pointermove: this._onPointerMove,
-      pointerleave: this._onPointerLeave
-    });
-  }
-
-  // Set parameters for input event handling.
-  _setEventHandlingParameters({pickingRadius, onLayerClick, onLayerHover}) {
-    if (!isNaN(pickingRadius)) {
-      this._pickingRadius = pickingRadius;
-    }
-    if (typeof onLayerClick !== 'undefined') {
-      this._onLayerClick = onLayerClick;
-    }
-    if (typeof onLayerHover !== 'undefined') {
-      this._onLayerHover = onLayerHover;
-    }
-    this._validateEventHandling();
   }
 
   // Make a viewport "current" in layer context, updating viewportChanged flags
@@ -469,7 +347,7 @@ export default class LayerManager {
       this.context.viewport = viewport;
 
       // Update layers states
-      // Let screen space layers update their state based on viewport
+      // Let screen space layers update their pickAn based on viewport
       for (const layer of this.layers) {
         layer.setChangeFlags({viewportChanged: 'Viewport changed'});
         this._updateLayer(layer);
@@ -663,85 +541,6 @@ export default class LayerManager {
     layer.lifecycle = LIFECYCLE.FINALIZED;
     log.log(LOG_PRIORITY_LIFECYCLE, `finalizing ${layerName(layer)}`);
     return error;
-  }
-
-  /**
-   * Warn if a deck-level mouse event has been specified,
-   * but no layers are `pickable`.
-   */
-  _validateEventHandling() {
-    if (this.onLayerClick || this.onLayerHover) {
-      if (this.layers.length && !this.layers.some(layer => layer.props.pickable)) {
-        log.warn(
-          'You have supplied a top-level input event handler (e.g. `onLayerClick`), ' +
-            'but none of your layers have set the `pickable` flag.'
-        )();
-      }
-    }
-  }
-
-  /**
-   * Route click events to layers.
-   * `pickLayer` will call the `onClick` prop of any picked layer,
-   * and `onLayerClick` is called directly from here
-   * with any picking info generated by `pickLayer`.
-   * @param {Object} event  An object encapsulating an input event,
-   *                        with the following shape:
-   *                        {Object: {x, y}} offsetCenter: center of the event
-   *                        {Object} srcEvent:             native JS Event object
-   */
-  _onClick(event) {
-    if (!event.offsetCenter) {
-      // Do not trigger onHover callbacks when click position is invalid.
-      return;
-    }
-    this._pickAndCallback({
-      callback: this._onLayerClick,
-      event,
-      mode: 'click'
-    });
-  }
-
-  /**
-   * Route click events to layers.
-   * `pickLayer` will call the `onHover` prop of any picked layer,
-   * and `onLayerHover` is called directly from here
-   * with any picking info generated by `pickLayer`.
-   * @param {Object} event  An object encapsulating an input event,
-   *                        with the following shape:
-   *                        {Object: {x, y}} offsetCenter: center of the event
-   *                        {Object} srcEvent:             native JS Event object
-   */
-  _onPointerMove(event) {
-    if (event.leftButton || event.rightButton) {
-      // Do not trigger onHover callbacks if mouse button is down.
-      return;
-    }
-    this._pickAndCallback({
-      callback: this._onLayerHover,
-      event,
-      mode: 'hover'
-    });
-  }
-
-  _onPointerLeave(event) {
-    this.pickObject({
-      x: -1,
-      y: -1,
-      radius: this._pickingRadius,
-      mode: 'hover'
-    });
-  }
-
-  _pickAndCallback(options) {
-    const pos = options.event.offsetCenter;
-    const radius = this._pickingRadius;
-    const selectedInfos = this.pickObject({x: pos.x, y: pos.y, radius, mode: options.mode});
-    if (options.callback) {
-      const firstInfo = selectedInfos.find(info => info.index >= 0) || null;
-      // As per documentation, send null value when no valid object is picked.
-      options.callback(firstInfo, selectedInfos, options.event.srcEvent);
-    }
   }
 
   // SEER INTEGRATION
