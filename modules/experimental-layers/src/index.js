@@ -15,3 +15,4 @@ export {default as BezierCurveLayer} from './bezier-curve-layer/bezier-curve-lay
 
 export {default as GPUScreenGridLayer} from './gpu-screen-grid-layer/gpu-screen-grid-layer';
 export {default as GPUGridLayer} from './gpu-grid-layer/gpu-grid-layer';
+export {default as ContourLayer} from './contour-layer/contour-layer';
