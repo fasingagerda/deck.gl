@@ -145,7 +145,6 @@ export default class Deck {
       isDragging: false // Whether the cursor is down
     };
 
-
     // Bind methods
     this._onRendererInitialized = this._onRendererInitialized.bind(this);
     this._onRenderFrame = this._onRenderFrame.bind(this);
@@ -629,7 +628,6 @@ export default class Deck {
       mode: 'hover'
     });
   }
-
 }
 
 Deck.getPropTypes = getPropTypes;
